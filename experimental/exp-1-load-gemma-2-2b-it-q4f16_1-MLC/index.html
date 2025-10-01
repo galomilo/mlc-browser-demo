@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Offline con MLC</title>
+  <style>
+    #progress {
+      width: 100%;
+      background: #eee;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 20px;
+      background: #4caf50;
+      text-align: center;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h2>Chat Offline con WebLLM</h2>
+  <div id="progress">
+    <div id="progress-bar">0%</div>
+  </div>
+  <textarea id="result" rows="10" cols="60"></textarea>
+
+  <script type="module">
+    import { MLCEngine } from "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm";
+
+    //const model = "SmolLM2-360M-Instruct-q4f16_1-MLC"; //modelo chico
+    //const model = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC"; //modelo mediano
+    const model = "gemma-2-2b-it-q4f16_1-MLC"; //modelo mediano mas grande
+    const engine = new MLCEngine();
+
+    // Mostrar progreso en pantalla
+    engine.setInitProgressCallback((report) => {
+      console.log(report);
+      const bar = document.getElementById("progress-bar");
+      if (report.text) {
+        bar.innerText = report.text;
+      }
+      if (report.progress) {
+        const percent = Math.round(report.progress * 100);
+        bar.style.width = percent + "%";
+        bar.innerText = percent + "%";
+      }
+    });
+
+    console.log("Cargando modelo...");
+    await engine.reload(model);
+
+    async function runChatCompletion() {
+      try {
+        console.log("Inicia conversación...");
+        const stream = await engine.chat.completions.create({
+          messages: [
+            { role: "system", content: "You are an expert electronics assistant. Provide clear, technical, and concise answers about electronic components and connections." },
+            { role: "user", content: "How can I connect an LED to an Arduino Uno?" }
+          ],
+          model: model,
+          stream: true,
+        });
+
+        for await (const response of stream) {
+          for (const choice of response.choices) {
+            if (choice.delta?.content) {
+              document.getElementById("result").value += choice.delta.content;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    }
+
+    runChatCompletion();
+  </script>
+</body>
+</html>
