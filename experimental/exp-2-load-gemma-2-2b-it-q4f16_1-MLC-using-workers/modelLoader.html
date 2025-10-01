@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Offline con MLC</title>
+  <style>
+    #progress {
+      width: 100%;
+      background: #eee;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 20px;
+      background: #4caf50;
+      text-align: center;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h2>Chat Offline con WebLLM</h2>
+  <div id="progress"><div id="progress-bar">0%</div></div>
+  <textarea id="result" rows="10" cols="60"></textarea><br>
+  <input id="input" placeholder="Escribí tu pregunta..." />
+  <button id="send">Enviar</button>
+
+  <script>
+    const worker = new Worker("Workers/mlc-worker.js", { type: "module" });
+    const bar = document.getElementById("progress-bar");
+    const result = document.getElementById("result");
+    const input = document.getElementById("input");
+
+    worker.onmessage = (event) => {
+      const { type, report, content } = event.data;
+      if (type === "progress" && report.progress) {
+        const percent = Math.round(report.progress * 100);
+        bar.style.width = percent + "%";
+        bar.innerText = percent + "%";
+      }
+      if (type === "ready") {
+        result.value += "\n[Modelo listo]\n";
+      }
+      if (type === "reply") {
+        result.value += content;
+      }
+    };
+
+    // Inicializar
+    worker.postMessage({ type: "init" });
+
+    document.getElementById("send").onclick = () => {
+      const question = input.value;
+      result.value += `\n👤: ${question}\n🤖: `;
+      worker.postMessage({
+        type: "chat",
+        data: {
+          messages: [
+            { role: "system", content: "You are an expert electronics assistant. Provide clear, technical, and concise answers about electronic components and connections." },
+            { role: "user", content: question }
+          ]
+        }
+      });
+      input.value = "";
+    };
+  </script>
+</body>
+</html>
