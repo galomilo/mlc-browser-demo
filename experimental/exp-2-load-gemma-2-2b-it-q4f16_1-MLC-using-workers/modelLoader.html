@@ -28,7 +28,7 @@
   <button id="send">Enviar</button>
 
   <script>
-    const worker = new Worker("Workers/mlc-worker.js", { type: "module" });
+    const worker = new Worker("mlc-worker.js", { type: "module" });
     const bar = document.getElementById("progress-bar");
     const result = document.getElementById("result");
     const input = document.getElementById("input");
