@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Offline con MLC</title>
+  <style>
+    #progress {
+      width: 100%;
+      background: #eee;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 20px;
+      background: #4caf50;
+      text-align: center;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h2>Chat Offline con WebLLM</h2>
+  <div id="progress"><div id="progress-bar">0%</div></div>
+
+  <div>
+    <textarea id="result" rows="15" cols="80"></textarea><br>
+
+    <div>
+      <h2>LLM Brain</h2>
+      <textarea id="brain" rows="15" cols="80"></textarea>
+    </div>
+  </div>
+
+  <input id="input" placeholder="Escribí tu pregunta..." />
+  <button id="send">Enviar</button>
+
+  <script type="module">
+    // traductor (de español a inglés)
+    const translatorEsToEn = await Translator.create({
+      sourceLanguage: "es",
+      targetLanguage: "en",
+    });
+
+    // traductor (de ingles a español)
+    const translatorEnToEs = await Translator.create({
+      sourceLanguage: "en",
+      targetLanguage: "es",
+    });
+
+    const worker = new Worker("mlc-worker.js", { type: "module" });
+    const bar = document.getElementById("progress-bar");
+
+    const result = document.getElementById("result");
+    const brain = document.getElementById("brain");
+
+    const input = document.getElementById("input");
+
+    let buffer = "";
+    let loadingInterval = null;
+
+    function startLoadingDots(targetElement) {
+      let dots = 0;
+      stopLoadingDots(targetElement);
+      loadingInterval = setInterval(() => {
+        dots = (dots + 1) % 4;
+        targetElement.value = targetElement.value.replace(/\.*$/, "");
+        targetElement.value += ".".repeat(dots);
+      }, 400);
+    }
+
+    function stopLoadingDots(targetElement) {
+      if (loadingInterval) {
+        clearInterval(loadingInterval);
+        loadingInterval = null;
+      }
+      targetElement.value = targetElement.value.replace(/\.*$/, "");
+    }
+
+    worker.onmessage = async (event) => {
+      const { type, report, content } = event.data;
+      if (type === "progress" && report.progress) {
+        const percent = Math.round(report.progress * 100);
+        bar.style.width = percent + "%";
+        bar.innerText = percent + "%";
+      }
+      if (type === "ready") {
+        result.value += "\n[Modelo listo]\n";
+      }
+      if (type === "reply") {
+        buffer += content;
+        brain.value += content;
+
+        if (!loadingInterval) startLoadingDots(result);
+      }
+      if (type === "done") {
+        const translated = await translatorEnToEs.translate(buffer);
+        stopLoadingDots(result);
+        result.value += translated + "\n"; // mostrar traducido
+        buffer = "";
+      }
+    };
+
+    // Inicializar
+    worker.postMessage({ type: "init" });
+
+    document.getElementById("send").onclick = async () => {
+      const question = input.value;
+
+      const questionTrans = await translatorEsToEn.translate(question);
+
+      result.value += `\n user: ${question}\n modelLLM: `;
+      worker.postMessage({
+        type: "chat",
+        data: {
+          messages: [
+            { role: "system", content: "You are an expert electronics assistant. Provide clear, technical, and concise answers about electronic components and connections." },
+            { role: "user", content: questionTrans  }
+          ]
+        }
+      });
+      input.value = "";
+    };
+  </script>
+</body>
+</html>
