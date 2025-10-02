@@ -9,10 +9,10 @@ __general keywords:__
 
 ### Experimental
 __structure:__
-`general keyword:` | `experiment-number/name-` | `brief description/summary`
+`general keyword:` | `experiment-number/name:` | `brief description/summary`
 
 __examples:__
-feat: exp-1-load LLM with MLC Engine
+feat: exp-1: load LLM with MLC Engine
 
 
 ### Docs
