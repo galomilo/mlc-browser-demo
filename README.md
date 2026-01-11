@@ -30,5 +30,6 @@ __structure:__
 __examples:__
 chore: create-file-README.md
 
+## How to test/run
 
-
+`npx serve .`
